@@ -15,12 +15,50 @@ body.is-dragging {
   cursor: grabbing;
 }
 
-.drag-handle {
+.ritual-menu {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
   flex: 0 0 auto;
+  padding: 0 0 8px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
   color: var(--muted);
-  font-size: 1rem;
-  letter-spacing: -0.18em;
-  transform: rotate(90deg);
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.ritual-menu:hover,
+.ritual-menu:focus-visible {
+  background: var(--green-soft);
+  color: var(--green-dark);
+}
+
+.ritual-edit-input {
+  min-width: 0;
+  flex: 1;
+  height: 38px;
+  padding: 0 10px;
+  border: 1px solid var(--green);
+  border-radius: 10px;
+  background: white;
+  color: var(--text);
+  font: inherit;
+}
+
+.ritual-edit-input:focus {
+  outline: 3px solid rgba(47, 125, 74, .18);
+}
+
+.ritual-row--editing {
+  cursor: default;
+  touch-action: auto;
+  border-color: #8aac95;
 }
 
 .ritual-row--placeholder {
