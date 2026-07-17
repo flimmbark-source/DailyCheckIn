@@ -94,58 +94,91 @@ function renderCurrentCategory() {
 }
 
 function beginRitualDrag(event) {
-  if (event.button !== 0 || event.target.closest("button")) return;
-  const row = event.currentTarget;
-  const category = categories[state.currentIndex];
-  const startIndex = Number(row.dataset.index);
-  const rect = row.getBoundingClientRect();
-  const ghost = row.cloneNode(true);
+  if (event.button !== 0 || event.target.closest("button") || state.transitioning) return;
+
+  const sourceRow = event.currentTarget;
+  const categoryId = categories[state.currentIndex].id;
+  const startIndex = Number(sourceRow.dataset.index);
+  const startRect = sourceRow.getBoundingClientRect();
+  const pointerId = event.pointerId;
+  const offsetX = event.clientX - startRect.left;
+  const offsetY = event.clientY - startRect.top;
+
+  const ghost = sourceRow.cloneNode(true);
   ghost.className = "ritual-row ritual-row--ghost";
-  ghost.style.width = `${rect.width}px`;
-  ghost.style.left = `${rect.left}px`;
-  ghost.style.top = `${rect.top}px`;
+  ghost.removeAttribute("data-index");
+  const ghostButton = ghost.querySelector("button");
+  if (ghostButton) ghostButton.remove();
+  ghost.style.width = `${startRect.width}px`;
+  ghost.style.height = `${startRect.height}px`;
+  ghost.style.left = `${startRect.left}px`;
+  ghost.style.top = `${startRect.top}px`;
   document.body.appendChild(ghost);
-  row.classList.add("ritual-row--dragging");
+
+  sourceRow.classList.add("ritual-row--placeholder");
   ritualList.classList.add("ritual-list--sorting");
   document.body.classList.add("is-dragging");
-  const offsetY = event.clientY - rect.top;
-  row.setPointerCapture(event.pointerId);
+
+  function placeGhost(pointerEvent) {
+    ghost.style.left = `${pointerEvent.clientX - offsetX}px`;
+    ghost.style.top = `${pointerEvent.clientY - offsetY}px`;
+  }
+
+  function clearIndicators() {
+    ritualList.querySelectorAll(".ritual-row").forEach((row) => row.classList.remove("drop-before", "drop-after"));
+  }
 
   function move(pointerEvent) {
-    ghost.style.top = `${pointerEvent.clientY - offsetY}px`;
-    const rows = [...ritualList.querySelectorAll(".ritual-row:not(.ritual-row--dragging)")];
-    const target = rows.find((candidate) => pointerEvent.clientY < candidate.getBoundingClientRect().top + candidate.offsetHeight / 2);
-    rows.forEach((candidate) => candidate.classList.remove("drop-before", "drop-after"));
-    if (target) {
-      target.classList.add("drop-before");
-      ritualList.insertBefore(row, target);
-    } else {
-      const last = rows.at(-1);
+    if (pointerEvent.pointerId !== pointerId) return;
+    pointerEvent.preventDefault();
+    placeGhost(pointerEvent);
+    clearIndicators();
+
+    const candidates = [...ritualList.querySelectorAll(".ritual-row:not(.ritual-row--placeholder)")];
+    const pointerY = pointerEvent.clientY;
+    let inserted = false;
+
+    for (const candidate of candidates) {
+      const rect = candidate.getBoundingClientRect();
+      const midpoint = rect.top + rect.height / 2;
+      if (pointerY < midpoint) {
+        candidate.classList.add("drop-before");
+        ritualList.insertBefore(sourceRow, candidate);
+        inserted = true;
+        break;
+      }
+    }
+
+    if (!inserted) {
+      const last = candidates.at(-1);
       if (last) last.classList.add("drop-after");
-      ritualList.appendChild(row);
+      ritualList.appendChild(sourceRow);
     }
   }
 
-  function end() {
-    row.releasePointerCapture(event.pointerId);
-    row.removeEventListener("pointermove", move);
-    row.removeEventListener("pointerup", end);
-    row.removeEventListener("pointercancel", end);
+  function end(pointerEvent) {
+    if (pointerEvent.pointerId !== pointerId) return;
+    window.removeEventListener("pointermove", move);
+    window.removeEventListener("pointerup", end);
+    window.removeEventListener("pointercancel", end);
+
+    clearIndicators();
     ghost.remove();
-    row.classList.remove("ritual-row--dragging");
+    sourceRow.classList.remove("ritual-row--placeholder");
     ritualList.classList.remove("ritual-list--sorting");
     document.body.classList.remove("is-dragging");
-    [...ritualList.children].forEach((item) => item.classList.remove("drop-before", "drop-after"));
-    const endIndex = [...ritualList.children].indexOf(row);
-    const rituals = state.rituals[category.id];
+
+    const endIndex = [...ritualList.children].indexOf(sourceRow);
+    const rituals = state.rituals[categoryId];
     const [moved] = rituals.splice(startIndex, 1);
     rituals.splice(endIndex, 0, moved);
     renderCurrentCategory();
   }
 
-  row.addEventListener("pointermove", move);
-  row.addEventListener("pointerup", end);
-  row.addEventListener("pointercancel", end);
+  placeGhost(event);
+  window.addEventListener("pointermove", move, { passive: false });
+  window.addEventListener("pointerup", end);
+  window.addEventListener("pointercancel", end);
   event.preventDefault();
 }
 
