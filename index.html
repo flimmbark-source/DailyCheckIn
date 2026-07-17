@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="styles.css" />
     <link rel="stylesheet" href="interactions.css" />
     <link rel="stylesheet" href="drag.css" />
+    <link rel="stylesheet" href="slider.css" />
   </head>
   <body>
     <main class="app-shell" aria-live="polite">
@@ -28,5 +29,6 @@
     </main>
     <div id="ritual-modal" class="modal-backdrop" hidden><section class="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="modal-handle" aria-hidden="true"></div><div class="modal-header"><h2 id="modal-title">Add ritual</h2><button id="close-modal" class="icon-button" type="button" aria-label="Close">×</button></div><label class="field-label" for="ritual-input">Name your ritual</label><input id="ritual-input" class="text-input" type="text" maxlength="40" placeholder="e.g. Dim the lights" /><div class="suggestion-section"><h3>Suggestions</h3><div id="suggestion-list" class="suggestion-list"></div></div><button id="add-ritual-button" class="primary-button" type="button" disabled>Add ritual</button></section></div>
     <script src="app.js"></script>
+    <script src="slider.js"></script>
   </body>
 </html>
