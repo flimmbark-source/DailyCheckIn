@@ -57,6 +57,52 @@ function renderCategoryPreview() {
   });
 }
 
+function beginRitualEdit(row, categoryId, ritualIndex) {
+  if (row.classList.contains("ritual-row--editing")) return;
+
+  const originalValue = state.rituals[categoryId][ritualIndex];
+  const name = row.querySelector(".ritual-row__name");
+  const menuButton = row.querySelector(".ritual-menu");
+  const removeButton = row.querySelector(".remove-ritual");
+  const input = document.createElement("input");
+  let finished = false;
+
+  row.classList.add("ritual-row--editing");
+  input.className = "ritual-edit-input";
+  input.type = "text";
+  input.maxLength = 40;
+  input.value = originalValue;
+  input.setAttribute("aria-label", `Edit ${originalValue}`);
+  name.replaceWith(input);
+  menuButton.hidden = true;
+  removeButton.hidden = true;
+
+  function finish(save) {
+    if (finished) return;
+    finished = true;
+    const editedValue = input.value.trim();
+    if (save && editedValue) state.rituals[categoryId][ritualIndex] = editedValue;
+    renderCurrentCategory();
+  }
+
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      finish(true);
+    }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      finish(false);
+    }
+  });
+  input.addEventListener("blur", () => finish(true));
+
+  requestAnimationFrame(() => {
+    input.focus();
+    input.select();
+  });
+}
+
 function renderCurrentCategory() {
   const category = categories[state.currentIndex];
   const currentRituals = state.rituals[category.id];
@@ -75,8 +121,20 @@ function renderCurrentCategory() {
     const row = document.createElement("div");
     row.className = "ritual-row";
     row.dataset.index = ritualIndex;
-    row.innerHTML = `<span class="drag-handle" aria-hidden="true">⋮⋮</span><span class="ritual-row__name"></span>`;
-    row.querySelector(".ritual-row__name").textContent = ritual;
+
+    const menuButton = document.createElement("button");
+    menuButton.className = "ritual-menu";
+    menuButton.type = "button";
+    menuButton.setAttribute("aria-label", `Edit ${ritual}`);
+    menuButton.textContent = "...";
+    menuButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      beginRitualEdit(row, category.id, ritualIndex);
+    });
+
+    const name = document.createElement("span");
+    name.className = "ritual-row__name";
+    name.textContent = ritual;
 
     const removeButton = document.createElement("button");
     removeButton.className = "remove-ritual";
@@ -87,14 +145,15 @@ function renderCurrentCategory() {
       state.rituals[category.id].splice(Number(row.dataset.index), 1);
       renderCurrentCategory();
     });
-    row.appendChild(removeButton);
+
+    row.append(menuButton, name, removeButton);
     row.addEventListener("pointerdown", beginRitualDrag);
     ritualList.appendChild(row);
   });
 }
 
 function beginRitualDrag(event) {
-  if (event.button !== 0 || event.target.closest("button") || state.transitioning) return;
+  if (event.button !== 0 || event.target.closest("button, input") || state.transitioning) return;
 
   const sourceRow = event.currentTarget;
   const categoryId = categories[state.currentIndex].id;
@@ -107,8 +166,7 @@ function beginRitualDrag(event) {
   const ghost = sourceRow.cloneNode(true);
   ghost.className = "ritual-row ritual-row--ghost";
   ghost.removeAttribute("data-index");
-  const ghostButton = ghost.querySelector("button");
-  if (ghostButton) ghostButton.remove();
+  ghost.querySelectorAll("button").forEach((button) => button.remove());
   ghost.style.width = `${startRect.width}px`;
   ghost.style.height = `${startRect.height}px`;
   ghost.style.left = `${startRect.left}px`;
@@ -125,7 +183,7 @@ function beginRitualDrag(event) {
   }
 
   function clearIndicators() {
-    ritualList.querySelectorAll(".ritual-row").forEach((row) => row.classList.remove("drop-before", "drop-after"));
+    ritualList.querySelectorAll(".ritual-row").forEach((item) => item.classList.remove("drop-before", "drop-after"));
   }
 
   function move(pointerEvent) {
