@@ -51,7 +51,8 @@
             <h3 id="ritual-title">Your rituals</h3>
             <span id="ritual-count" class="ritual-count"></span>
           </div>
-          <div id="ritual-list" class="ritual-list"></div>
+          <div id="ritual-list" class="ritual-list" aria-describedby="ritual-reorder-hint"></div>
+          <p id="ritual-reorder-hint" class="sr-only">Drag rituals to move them above or below one another.</p>
           <button id="open-add-ritual" class="secondary-button" type="button">＋ Add ritual</button>
         </section>
 
@@ -66,6 +67,13 @@
         <div id="summary-list" class="summary-list"></div>
         <button id="restart-button" class="primary-button" type="button">Check in again</button>
       </section>
+
+      <div id="page-transition" class="page-transition" aria-hidden="true">
+        <div class="firework-burst">
+          <span></span><span></span><span></span><span></span><span></span><span></span>
+          <span></span><span></span><span></span><span></span><span></span><span></span>
+        </div>
+      </div>
     </main>
 
     <div id="ritual-modal" class="modal-backdrop" hidden>
