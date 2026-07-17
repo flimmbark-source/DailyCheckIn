@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f7f5ef" />
+    <title>Body & Self Daily Check-In</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell" aria-live="polite">
+      <section id="start-screen" class="screen screen--active" aria-labelledby="start-title">
+        <header class="start-header">
+          <p class="eyebrow">Daily Check-In</p>
+          <h1 id="start-title">Body &amp; Self</h1>
+          <p class="intro">A brief check-in with the parts of your body and daily life that need care.</p>
+        </header>
+
+        <div id="category-preview" class="category-preview" aria-label="Check-in areas"></div>
+
+        <button id="start-button" class="primary-button" type="button">Start check-in</button>
+      </section>
+
+      <section id="checkin-screen" class="screen" aria-labelledby="question-title">
+        <header class="checkin-header">
+          <button id="back-button" class="icon-button" type="button" aria-label="Go back">←</button>
+          <div class="progress-wrap" aria-label="Check-in progress">
+            <span id="step-label" class="step-label"></span>
+            <div class="progress-track" aria-hidden="true">
+              <div id="progress-fill" class="progress-fill"></div>
+            </div>
+          </div>
+          <div class="header-spacer" aria-hidden="true"></div>
+        </header>
+
+        <div class="question-block">
+          <div id="category-icon" class="category-icon" aria-hidden="true"></div>
+          <h2 id="question-title"></h2>
+        </div>
+
+        <div class="slider-block">
+          <input id="feeling-slider" class="feeling-slider" type="range" min="0" max="100" step="1" value="50" aria-describedby="slider-labels" />
+          <div id="slider-labels" class="slider-labels">
+            <span id="low-label"></span>
+            <span id="high-label"></span>
+          </div>
+        </div>
+
+        <section class="ritual-section" aria-labelledby="ritual-title">
+          <div class="section-heading-row">
+            <h3 id="ritual-title">Your rituals</h3>
+            <span id="ritual-count" class="ritual-count"></span>
+          </div>
+          <div id="ritual-list" class="ritual-list"></div>
+          <button id="open-add-ritual" class="secondary-button" type="button">＋ Add ritual</button>
+        </section>
+
+        <button id="next-button" class="primary-button" type="button">Next</button>
+      </section>
+
+      <section id="complete-screen" class="screen" aria-labelledby="complete-title">
+        <div class="complete-mark" aria-hidden="true">✓</div>
+        <p class="eyebrow">Check-in complete</p>
+        <h1 id="complete-title">You checked in with yourself.</h1>
+        <p class="intro">Your answers and rituals have been saved for this session.</p>
+        <div id="summary-list" class="summary-list"></div>
+        <button id="restart-button" class="primary-button" type="button">Check in again</button>
+      </section>
+    </main>
+
+    <div id="ritual-modal" class="modal-backdrop" hidden>
+      <section class="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div class="modal-handle" aria-hidden="true"></div>
+        <div class="modal-header">
+          <h2 id="modal-title">Add ritual</h2>
+          <button id="close-modal" class="icon-button" type="button" aria-label="Close">×</button>
+        </div>
+
+        <label class="field-label" for="ritual-input">Name your ritual</label>
+        <input id="ritual-input" class="text-input" type="text" maxlength="40" placeholder="e.g. Dim the lights" />
+
+        <div class="suggestion-section">
+          <h3>Suggestions</h3>
+          <div id="suggestion-list" class="suggestion-list"></div>
+        </div>
+
+        <button id="add-ritual-button" class="primary-button" type="button" disabled>Add ritual</button>
+      </section>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
