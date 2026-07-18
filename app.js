@@ -9,6 +9,11 @@ const categories = [
 
 const STORAGE_KEY = "body-and-self-checkin-v2";
 
+// The product threshold for a "meaningful" change is still unresolved.
+// Keeping the existing any-final-difference behavior isolated here prevents it
+// from being embedded throughout the flow and makes the later decision local.
+const CHANGE_PROMPT_THRESHOLD = 1;
+
 function defaultRituals() {
   return Object.fromEntries(categories.map((category) => [category.id, [...category.rituals]]));
 }
@@ -21,7 +26,9 @@ function normaliseRituals(savedRituals) {
   const fallback = defaultRituals();
   return Object.fromEntries(categories.map((category) => {
     const saved = savedRituals?.[category.id];
-    const valid = Array.isArray(saved) ? saved.filter((ritual) => typeof ritual === "string" && ritual.trim()).map((ritual) => ritual.trim()) : fallback[category.id];
+    const valid = Array.isArray(saved)
+      ? saved.filter((ritual) => typeof ritual === "string" && ritual.trim()).map((ritual) => ritual.trim())
+      : fallback[category.id];
     return [category.id, [...valid]];
   }));
 }
@@ -65,8 +72,8 @@ const state = {
   answers: { ...savedState.previousAnswers },
   rituals: savedState.rituals,
   reflections: savedState.reflections,
-  pendingReflections: {},
   selectedRituals: new Set(),
+  reflectionOutcome: null,
   transitioning: false
 };
 
@@ -76,38 +83,43 @@ const screens = {
   complete: document.querySelector("#complete-screen")
 };
 
-const startIntro = document.querySelector("#start-intro");
 const categoryPreview = document.querySelector("#category-preview");
 const startButton = document.querySelector("#start-button");
 const backButton = document.querySelector("#back-button");
 const stepLabel = document.querySelector("#step-label");
 const progressFill = document.querySelector("#progress-fill");
 const categoryIcon = document.querySelector("#category-icon");
-const stageEyebrow = document.querySelector("#stage-eyebrow");
 const questionTitle = document.querySelector("#question-title");
-const stageSupport = document.querySelector("#stage-support");
 const setupPanel = document.querySelector("#setup-panel");
 const ratingPanel = document.querySelector("#rating-panel");
-const reflectionPanel = document.querySelector("#reflection-panel");
+const setupDefinition = document.querySelector("#setup-definition");
+const setupPurpose = document.querySelector("#setup-purpose");
 const feelingSlider = document.querySelector("#feeling-slider");
 const lowLabel = document.querySelector("#low-label");
 const highLabel = document.querySelector("#high-label");
 const previousAnswer = document.querySelector("#previous-answer");
+const currentAnswer = document.querySelector("#current-answer");
 const ritualList = document.querySelector("#ritual-list");
-const ritualCount = document.querySelector("#ritual-count");
 const openAddRitual = document.querySelector("#open-add-ritual");
-const changeSummary = document.querySelector("#change-summary");
-const reflectionRituals = document.querySelector("#reflection-rituals");
-const reflectionCount = document.querySelector("#reflection-count");
-const reflectionNote = document.querySelector("#reflection-note");
-const stageActions = document.querySelector("#stage-actions");
-const skipReflection = document.querySelector("#skip-reflection");
 const nextButton = document.querySelector("#next-button");
 const completeIntro = document.querySelector("#complete-intro");
 const summaryList = document.querySelector("#summary-list");
 const restartButton = document.querySelector("#restart-button");
 const pageTransition = document.querySelector("#page-transition");
-const modal = document.querySelector("#ritual-modal");
+
+const reflectionModal = document.querySelector("#reflection-modal");
+const reflectionTitle = document.querySelector("#reflection-title");
+const reflectionQuestion = document.querySelector("#reflection-question");
+const closeReflectionButton = document.querySelector("#close-reflection");
+const reflectionRituals = document.querySelector("#reflection-rituals");
+const openReflectionNote = document.querySelector("#open-reflection-note");
+const reflectionNoteWrap = document.querySelector("#reflection-note-wrap");
+const reflectionNote = document.querySelector("#reflection-note");
+const reflectionOutcomeButtons = [...document.querySelectorAll(".outcome-button")];
+const skipReflection = document.querySelector("#skip-reflection");
+const continueReflection = document.querySelector("#continue-reflection");
+
+const ritualModal = document.querySelector("#ritual-modal");
 const closeModalButton = document.querySelector("#close-modal");
 const ritualInput = document.querySelector("#ritual-input");
 const suggestionList = document.querySelector("#suggestion-list");
@@ -127,16 +139,8 @@ function savePersistentState() {
       reflections: state.reflections.slice(-100)
     }));
   } catch {
-    // The check-in still works when storage is unavailable; it simply will not persist.
+    // The check-in remains usable when storage is unavailable.
   }
-}
-
-function renderStartScreen() {
-  startIntro.textContent = state.hasCompletedSetup
-    ? "A brief check-in with the parts of your body and daily life that need care."
-    : "First, set up the rituals that are part of caring for each area. Then you’ll complete your first check-in.";
-  startButton.textContent = state.hasCompletedSetup ? "Start check-in" : "Set up check-in";
-  renderCategoryPreview();
 }
 
 function renderCategoryPreview() {
@@ -144,22 +148,7 @@ function renderCategoryPreview() {
   categories.forEach((category) => {
     const row = document.createElement("div");
     row.className = "category-row";
-
-    const icon = document.createElement("span");
-    icon.className = "category-row__icon";
-    icon.setAttribute("aria-hidden", "true");
-    icon.textContent = category.icon;
-
-    const name = document.createElement("span");
-    name.className = "category-row__name";
-    name.textContent = category.name;
-
-    const marker = document.createElement("span");
-    marker.className = `category-row__dot${state.hasCompletedSetup ? " category-row__dot--saved" : ""}`;
-    marker.setAttribute("aria-hidden", "true");
-    marker.textContent = state.hasCompletedSetup ? "✓" : "";
-
-    row.append(icon, name, marker);
+    row.innerHTML = `<span class="category-row__icon" aria-hidden="true">${category.icon}</span><span class="category-row__name">${category.name}</span><span class="category-row__dot" aria-hidden="true"></span>`;
     categoryPreview.appendChild(row);
   });
 }
@@ -171,85 +160,51 @@ function ritualContext(category) {
 }
 
 function setVisiblePanel(panel) {
-  [setupPanel, ratingPanel, reflectionPanel].forEach((candidate) => {
-    candidate.hidden = candidate !== panel;
-  });
+  setupPanel.hidden = panel !== setupPanel;
+  ratingPanel.hidden = panel !== ratingPanel;
 }
 
 function renderCurrentStage() {
   const category = categories[state.currentIndex];
-  stepLabel.textContent = `${category.name} · ${state.currentIndex + 1} of ${categories.length}`;
+  stepLabel.textContent = `${state.currentIndex + 1} of ${categories.length}`;
   progressFill.style.width = `${((state.currentIndex + 1) / categories.length) * 100}%`;
   categoryIcon.textContent = category.icon;
-  lowLabel.textContent = category.low;
-  highLabel.textContent = category.high;
-  skipReflection.hidden = state.phase !== "reflection";
-  stageActions.classList.toggle("stage-actions--split", state.phase === "reflection");
 
   if (state.phase === "setup") renderSetupStage(category);
-  if (state.phase === "rating") renderRatingStage(category);
-  if (state.phase === "reflection") renderReflectionStage(category);
+  else renderRatingStage(category);
 }
 
 function renderSetupStage(category) {
   setVisiblePanel(setupPanel);
-  stageEyebrow.textContent = "Ritual setup";
   questionTitle.textContent = `Your ${category.name.toLowerCase()} rituals`;
-  stageSupport.textContent = `Rituals are the things you regularly do that may affect ${ritualContext(category)}. Review the list, add yours, and remove anything that does not fit.`;
+  setupDefinition.textContent = `Rituals are the things you regularly do that may affect ${ritualContext(category)}.`;
+  setupPurpose.textContent = "Add the ones that are part of your life. During future check-ins, you can note when one of them may have helped or made things harder.";
   nextButton.textContent = "Continue";
   renderRitualList(category);
 }
 
 function renderRatingStage(category) {
   setVisiblePanel(ratingPanel);
-  stageEyebrow.textContent = state.isInitialRun ? "First check-in" : "Daily check-in";
   questionTitle.textContent = category.question;
-  stageSupport.textContent = "";
   feelingSlider.value = state.answers[category.id];
+  lowLabel.textContent = category.low;
+  highLabel.textContent = category.high;
   nextButton.textContent = state.currentIndex === categories.length - 1 ? "Finish" : "Next";
 
-  if (state.isInitialRun) {
-    previousAnswer.hidden = true;
-    previousAnswer.textContent = "";
-  } else {
-    previousAnswer.hidden = false;
-    previousAnswer.textContent = `Previous check-in: ${describePosition(category, state.previousAnswers[category.id])}`;
-  }
-
+  previousAnswer.hidden = state.isInitialRun;
+  previousAnswer.textContent = state.isInitialRun
+    ? ""
+    : `Previous check-in: ${describePosition(category, state.previousAnswers[category.id])}`;
+  updateCurrentAnswer(category);
   requestAnimationFrame(() => feelingSlider.dispatchEvent(new Event("input", { bubbles: true })));
 }
 
-function renderReflectionStage(category) {
-  setVisiblePanel(reflectionPanel);
-  stageEyebrow.textContent = "Reflect on change";
-  questionTitle.textContent = `${category.name} changed`;
-  stageSupport.textContent = "Select any rituals that may have influenced the change, then add anything else you noticed.";
-  nextButton.textContent = state.currentIndex === categories.length - 1 ? "Save and finish" : "Save and continue";
-
-  const from = state.previousAnswers[category.id];
-  const to = state.answers[category.id];
-  changeSummary.innerHTML = "";
-
-  const previous = document.createElement("div");
-  previous.className = "change-summary__item";
-  previous.innerHTML = `<span>Previous</span><strong>${describePosition(category, from)}</strong>`;
-
-  const arrow = document.createElement("span");
-  arrow.className = "change-summary__arrow";
-  arrow.setAttribute("aria-hidden", "true");
-  arrow.textContent = "→";
-
-  const current = document.createElement("div");
-  current.className = "change-summary__item";
-  current.innerHTML = `<span>Now</span><strong>${describePosition(category, to)}</strong>`;
-
-  changeSummary.append(previous, arrow, current);
-  renderReflectionOptions(category);
+function updateCurrentAnswer(category) {
+  currentAnswer.textContent = `Current answer: ${describePosition(category, state.answers[category.id])}`;
 }
 
 function renderRitualList(category) {
   const currentRituals = state.rituals[category.id];
-  ritualCount.textContent = `${currentRituals.length} ${currentRituals.length === 1 ? "ritual" : "rituals"}`;
   ritualList.innerHTML = "";
 
   if (currentRituals.length === 0) {
@@ -293,43 +248,6 @@ function renderRitualList(category) {
     row.append(menuButton, name, removeButton);
     row.addEventListener("pointerdown", beginRitualDrag);
     ritualList.appendChild(row);
-  });
-}
-
-function renderReflectionOptions(category) {
-  const currentRituals = state.rituals[category.id];
-  reflectionRituals.innerHTML = "";
-  reflectionCount.textContent = `${state.selectedRituals.size} selected`;
-
-  if (currentRituals.length === 0) {
-    const empty = document.createElement("p");
-    empty.className = "empty-state";
-    empty.textContent = "No rituals are saved for this area. You can still describe what changed below.";
-    reflectionRituals.appendChild(empty);
-    return;
-  }
-
-  currentRituals.forEach((ritual) => {
-    const option = document.createElement("button");
-    const isSelected = state.selectedRituals.has(ritual);
-    option.className = "reflection-option";
-    option.type = "button";
-    option.setAttribute("aria-pressed", String(isSelected));
-
-    const check = document.createElement("span");
-    check.className = "reflection-option__check";
-    check.setAttribute("aria-hidden", "true");
-    check.textContent = isSelected ? "✓" : "";
-
-    const label = document.createElement("span");
-    label.textContent = ritual;
-    option.append(check, label);
-    option.addEventListener("click", () => {
-      if (state.selectedRituals.has(ritual)) state.selectedRituals.delete(ritual);
-      else state.selectedRituals.add(ritual);
-      renderReflectionOptions(category);
-    });
-    reflectionRituals.appendChild(option);
   });
 }
 
@@ -497,17 +415,74 @@ function describePosition(category, value) {
   return category.high;
 }
 
-function resetReflectionDraft(categoryId) {
-  const saved = state.pendingReflections[categoryId];
-  state.selectedRituals = new Set(saved?.rituals || []);
-  reflectionNote.value = saved?.note || "";
+function hasMeaningfulChange(category) {
+  return Math.abs(state.answers[category.id] - state.previousAnswers[category.id]) >= CHANGE_PROMPT_THRESHOLD;
 }
 
-function saveReflectionDraft(categoryId) {
-  state.pendingReflections[categoryId] = {
-    rituals: [...state.selectedRituals],
-    note: reflectionNote.value.trim()
-  };
+function resetReflectionState() {
+  state.selectedRituals = new Set();
+  state.reflectionOutcome = null;
+  reflectionNote.value = "";
+  reflectionNoteWrap.hidden = true;
+  openReflectionNote.textContent = "＋ Something else";
+  renderOutcomeButtons();
+}
+
+function openReflectionPrompt(category) {
+  resetReflectionState();
+  reflectionTitle.textContent = `Your ${category.name.toLowerCase()} has changed`;
+  reflectionQuestion.textContent = `Did any of your ${category.name.toLowerCase()} rituals contribute to this?`;
+  renderReflectionOptions(category);
+  reflectionModal.hidden = false;
+}
+
+function closeReflectionPrompt() {
+  reflectionModal.hidden = true;
+  nextButton.focus();
+}
+
+function renderReflectionOptions(category) {
+  const currentRituals = state.rituals[category.id];
+  reflectionRituals.innerHTML = "";
+
+  if (currentRituals.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "empty-state";
+    empty.textContent = "No rituals are saved for this area.";
+    reflectionRituals.appendChild(empty);
+    return;
+  }
+
+  currentRituals.forEach((ritual) => {
+    const option = document.createElement("button");
+    const isSelected = state.selectedRituals.has(ritual);
+    option.className = "reflection-option";
+    option.type = "button";
+    option.setAttribute("aria-pressed", String(isSelected));
+
+    const check = document.createElement("span");
+    check.className = "reflection-option__check";
+    check.setAttribute("aria-hidden", "true");
+    check.textContent = isSelected ? "✓" : "";
+
+    const label = document.createElement("span");
+    label.textContent = ritual;
+    option.append(check, label);
+    option.addEventListener("click", () => {
+      state.reflectionOutcome = null;
+      if (state.selectedRituals.has(ritual)) state.selectedRituals.delete(ritual);
+      else state.selectedRituals.add(ritual);
+      renderOutcomeButtons();
+      renderReflectionOptions(category);
+    });
+    reflectionRituals.appendChild(option);
+  });
+}
+
+function renderOutcomeButtons() {
+  reflectionOutcomeButtons.forEach((button) => {
+    button.setAttribute("aria-pressed", String(button.dataset.outcome === state.reflectionOutcome));
+  });
 }
 
 let checkInId = null;
@@ -517,19 +492,14 @@ function currentCheckInId() {
 }
 
 function recordReflection(category) {
-  const draft = {
-    rituals: [...state.selectedRituals],
-    note: reflectionNote.value.trim()
-  };
-  state.pendingReflections[category.id] = draft;
-  state.reflections = state.reflections.filter((reflection) => reflection.checkInId !== currentCheckInId() || reflection.categoryId !== category.id);
   state.reflections.push({
     checkInId: currentCheckInId(),
     categoryId: category.id,
     from: state.previousAnswers[category.id],
     to: state.answers[category.id],
-    rituals: draft.rituals,
-    note: draft.note,
+    rituals: [...state.selectedRituals],
+    outcome: state.reflectionOutcome,
+    note: reflectionNote.value.trim(),
     recordedAt: new Date().toISOString()
   });
 }
@@ -549,14 +519,12 @@ function completeCheckIn() {
   state.hasCompletedSetup = true;
   state.isInitialRun = false;
   state.previousAnswers = { ...state.answers };
-  state.pendingReflections = {};
   savePersistentState();
   renderSummary();
   completeIntro.textContent = wasInitialRun
-    ? "Your rituals and first check-in have been saved. Future check-ins will begin with the rating bars."
-    : "Your answers and any reflections have been saved.";
+    ? "Your rituals and first check-in have been saved."
+    : "Your answers and any explanations have been saved.";
   showScreen("complete");
-  renderStartScreen();
 }
 
 function renderSummary() {
@@ -564,20 +532,12 @@ function renderSummary() {
   categories.forEach((category) => {
     const row = document.createElement("div");
     row.className = "summary-row";
-
-    const label = document.createElement("span");
-    label.textContent = `${category.icon} ${category.name}`;
-
-    const value = document.createElement("span");
-    value.className = "summary-row__value";
-    value.textContent = describePosition(category, state.answers[category.id]);
-
-    row.append(label, value);
+    row.innerHTML = `<span>${category.icon} ${category.name}</span><span class="summary-row__value">${describePosition(category, state.answers[category.id])}</span>`;
     summaryList.appendChild(row);
   });
 }
 
-function openModal() {
+function openRitualModal() {
   const category = categories[state.currentIndex];
   ritualInput.value = "";
   addRitualButton.disabled = true;
@@ -594,13 +554,13 @@ function openModal() {
     });
     suggestionList.appendChild(button);
   });
-  modal.hidden = false;
+  ritualModal.hidden = false;
   requestAnimationFrame(() => ritualInput.focus());
 }
 
-function closeModal() {
-  modal.hidden = true;
-  if (!openAddRitual.hidden) openAddRitual.focus();
+function closeRitualModal() {
+  ritualModal.hidden = true;
+  openAddRitual.focus();
 }
 
 function addRitual() {
@@ -611,7 +571,7 @@ function addRitual() {
     state.rituals[category.id].push(value);
     savePersistentState();
   }
-  closeModal();
+  closeRitualModal();
   renderCurrentStage();
 }
 
@@ -620,9 +580,6 @@ function beginCheckIn() {
   state.phase = state.hasCompletedSetup ? "rating" : "setup";
   state.isInitialRun = !state.hasCompletedSetup;
   state.answers = { ...state.previousAnswers };
-  state.pendingReflections = {};
-  state.selectedRituals = new Set();
-  reflectionNote.value = "";
   checkInId = new Date().toISOString();
   renderCurrentStage();
   showScreen("checkin");
@@ -632,19 +589,13 @@ startButton.addEventListener("click", beginCheckIn);
 
 feelingSlider.addEventListener("input", () => {
   if (state.phase !== "rating") return;
-  state.answers[categories[state.currentIndex].id] = Number(feelingSlider.value);
+  const category = categories[state.currentIndex];
+  state.answers[category.id] = Number(feelingSlider.value);
+  updateCurrentAnswer(category);
 });
 
 backButton.addEventListener("click", () => {
   if (state.transitioning) return;
-
-  if (state.phase === "reflection") {
-    saveReflectionDraft(categories[state.currentIndex].id);
-    return runPageTransition(() => {
-      state.phase = "rating";
-      renderCurrentStage();
-    });
-  }
 
   if (state.phase === "rating" && state.isInitialRun) {
     return runPageTransition(() => {
@@ -676,47 +627,66 @@ nextButton.addEventListener("click", () => {
     });
   }
 
-  if (state.phase === "rating") {
-    const changed = state.answers[category.id] !== state.previousAnswers[category.id];
-    if (!state.isInitialRun && changed) {
-      resetReflectionDraft(category.id);
-      return runPageTransition(() => {
-        state.phase = "reflection";
-        renderCurrentStage();
-      });
-    }
-    delete state.pendingReflections[category.id];
-    state.reflections = state.reflections.filter((reflection) => reflection.checkInId !== currentCheckInId() || reflection.categoryId !== category.id);
-    return runPageTransition(moveToNextCategory);
+  if (!state.isInitialRun && hasMeaningfulChange(category)) {
+    openReflectionPrompt(category);
+    return;
   }
 
-  if (state.phase === "reflection") {
-    recordReflection(category);
-    return runPageTransition(moveToNextCategory);
-  }
-});
-
-skipReflection.addEventListener("click", () => {
-  const category = categories[state.currentIndex];
-  state.pendingReflections[category.id] = { rituals: [], note: "" };
-  state.reflections = state.reflections.filter((reflection) => reflection.checkInId !== currentCheckInId() || reflection.categoryId !== category.id);
   runPageTransition(moveToNextCategory);
 });
 
-openAddRitual.addEventListener("click", openModal);
-closeModalButton.addEventListener("click", closeModal);
-modal.addEventListener("click", (event) => { if (event.target === modal) closeModal(); });
-ritualInput.addEventListener("input", () => { addRitualButton.disabled = ritualInput.value.trim().length === 0; });
+closeReflectionButton.addEventListener("click", closeReflectionPrompt);
+reflectionModal.addEventListener("click", (event) => {
+  if (event.target === reflectionModal) closeReflectionPrompt();
+});
+
+openReflectionNote.addEventListener("click", () => {
+  const willOpen = reflectionNoteWrap.hidden;
+  reflectionNoteWrap.hidden = !willOpen;
+  openReflectionNote.textContent = willOpen ? "− Hide explanation" : "＋ Something else";
+  if (willOpen) requestAnimationFrame(() => reflectionNote.focus());
+});
+
+reflectionOutcomeButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    const outcome = button.dataset.outcome;
+    state.reflectionOutcome = state.reflectionOutcome === outcome ? null : outcome;
+    if (state.reflectionOutcome) state.selectedRituals.clear();
+    renderOutcomeButtons();
+    renderReflectionOptions(categories[state.currentIndex]);
+  });
+});
+
+skipReflection.addEventListener("click", () => {
+  closeReflectionPrompt();
+  runPageTransition(moveToNextCategory);
+});
+
+continueReflection.addEventListener("click", () => {
+  const category = categories[state.currentIndex];
+  recordReflection(category);
+  closeReflectionPrompt();
+  runPageTransition(moveToNextCategory);
+});
+
+openAddRitual.addEventListener("click", openRitualModal);
+closeModalButton.addEventListener("click", closeRitualModal);
+ritualModal.addEventListener("click", (event) => {
+  if (event.target === ritualModal) closeRitualModal();
+});
+ritualInput.addEventListener("input", () => {
+  addRitualButton.disabled = ritualInput.value.trim().length === 0;
+});
 ritualInput.addEventListener("keydown", (event) => {
   if (event.key === "Enter" && ritualInput.value.trim()) addRitual();
-  if (event.key === "Escape") closeModal();
+  if (event.key === "Escape") closeRitualModal();
 });
 addRitualButton.addEventListener("click", addRitual);
+
 restartButton.addEventListener("click", () => {
   state.currentIndex = 0;
   state.phase = "rating";
-  renderStartScreen();
   showScreen("start");
 });
 
-renderStartScreen();
+renderCategoryPreview();
