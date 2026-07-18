@@ -18,10 +18,10 @@
         <header class="start-header">
           <p class="eyebrow">Daily Check-In</p>
           <h1 id="start-title">Body &amp; Self</h1>
-          <p id="start-intro" class="intro"></p>
+          <p id="start-intro" class="intro">A brief check-in with the parts of your body and daily life that need care.</p>
         </header>
         <div id="category-preview" class="category-preview" aria-label="Check-in areas"></div>
-        <button id="start-button" class="primary-button" type="button"></button>
+        <button id="start-button" class="primary-button" type="button">Start check-in</button>
       </section>
 
       <section id="checkin-screen" class="screen" aria-labelledby="question-title">
@@ -37,17 +37,15 @@
         <div class="stage-content">
           <div class="question-block">
             <div id="category-icon" class="category-icon" aria-hidden="true"></div>
-            <p id="stage-eyebrow" class="stage-eyebrow"></p>
             <h2 id="question-title"></h2>
-            <p id="stage-support" class="stage-support"></p>
           </div>
 
           <section id="setup-panel" class="stage-panel setup-panel" aria-label="Ritual setup">
-            <section class="ritual-section" aria-labelledby="ritual-title">
-              <div class="section-heading-row">
-                <h3 id="ritual-title">Your rituals</h3>
-                <span id="ritual-count" class="ritual-count"></span>
-              </div>
+            <div class="setup-copy">
+              <p id="setup-definition"></p>
+              <p id="setup-purpose"></p>
+            </div>
+            <section class="ritual-section" aria-label="Your rituals">
               <div id="ritual-list" class="ritual-list" aria-describedby="ritual-reorder-hint"></div>
               <p id="ritual-reorder-hint" class="sr-only">Drag rituals to move them above or below one another.</p>
               <button id="open-add-ritual" class="secondary-button" type="button">＋ Add ritual</button>
@@ -56,26 +54,17 @@
 
           <section id="rating-panel" class="stage-panel rating-panel" aria-label="Daily rating" hidden>
             <div class="slider-block">
-              <input id="feeling-slider" class="feeling-slider" type="range" min="0" max="100" step="1" value="50" aria-describedby="slider-labels previous-answer" />
+              <input id="feeling-slider" class="feeling-slider" type="range" min="0" max="100" step="1" value="50" aria-describedby="slider-labels previous-answer current-answer" />
               <div id="slider-labels" class="slider-labels"><span id="low-label"></span><span id="high-label"></span></div>
             </div>
-            <p id="previous-answer" class="previous-answer" hidden></p>
-          </section>
-
-          <section id="reflection-panel" class="stage-panel reflection-panel" aria-label="Reflect on change" hidden>
-            <div id="change-summary" class="change-summary"></div>
-            <div class="section-heading-row reflection-heading">
-              <h3>What may have influenced it?</h3>
-              <span id="reflection-count" class="ritual-count"></span>
+            <div class="rating-context">
+              <p id="previous-answer" class="rating-context__line" hidden></p>
+              <p id="current-answer" class="rating-context__line"></p>
             </div>
-            <div id="reflection-rituals" class="reflection-options"></div>
-            <label class="field-label reflection-label" for="reflection-note">Anything else you noticed?</label>
-            <textarea id="reflection-note" class="text-input reflection-note" maxlength="240" rows="3" placeholder="Add a short note (optional)"></textarea>
           </section>
         </div>
 
-        <div id="stage-actions" class="stage-actions">
-          <button id="skip-reflection" class="tertiary-button" type="button" hidden>Skip</button>
+        <div class="stage-actions">
           <button id="next-button" class="primary-button" type="button">Continue</button>
         </div>
       </section>
@@ -91,6 +80,31 @@
 
       <div id="page-transition" class="page-transition" aria-hidden="true"><div class="firework-burst"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div></div>
     </main>
+
+    <div id="reflection-modal" class="modal-backdrop" hidden>
+      <section class="modal-sheet reflection-sheet" role="dialog" aria-modal="true" aria-labelledby="reflection-title">
+        <div class="modal-handle" aria-hidden="true"></div>
+        <div class="modal-header">
+          <h2 id="reflection-title"></h2>
+          <button id="close-reflection" class="icon-button" type="button" aria-label="Close">×</button>
+        </div>
+        <p id="reflection-question" class="reflection-question"></p>
+        <div id="reflection-rituals" class="reflection-options" aria-label="Rituals that may have contributed"></div>
+        <button id="open-reflection-note" class="secondary-button reflection-note-toggle" type="button">＋ Something else</button>
+        <div id="reflection-note-wrap" class="reflection-note-wrap" hidden>
+          <label class="field-label" for="reflection-note">What else happened?</label>
+          <textarea id="reflection-note" class="text-input reflection-note" maxlength="240" rows="3" placeholder="Add a short explanation"></textarea>
+        </div>
+        <div class="reflection-outcomes" aria-label="Other responses">
+          <button class="outcome-button" type="button" data-outcome="none" aria-pressed="false">None</button>
+          <button class="outcome-button" type="button" data-outcome="not-sure" aria-pressed="false">Not sure</button>
+        </div>
+        <div class="reflection-actions">
+          <button id="skip-reflection" class="tertiary-button" type="button">Skip</button>
+          <button id="continue-reflection" class="primary-button" type="button">Continue</button>
+        </div>
+      </section>
+    </div>
 
     <div id="ritual-modal" class="modal-backdrop" hidden>
       <section class="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="modal-title">
