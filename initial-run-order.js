@@ -76,6 +76,8 @@ backButton.addEventListener("click", (event) => {
     return;
   }
 
+  // The step immediately before this category's bar is the previous
+  // category's ritual setup screen.
   runPageTransition(() => {
     state.currentIndex -= 1;
     state.phase = "setup";
