@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#f7f5ef" />
+    <title>Habit Library</title>
+    <style>
+      :root {
+        --page: #e9e8e3;
+        --surface: #fbfaf6;
+        --surface-strong: #ffffff;
+        --text: #17201a;
+        --muted: #677069;
+        --line: #d9ddd7;
+        --green: #2f7d4a;
+        --green-dark: #235e39;
+        --green-soft: #e4f0e7;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        background: radial-gradient(circle at top, rgba(255,255,255,.9), transparent 38%), var(--page);
+        color: var(--text);
+      }
+
+      button { font: inherit; }
+
+      .library-shell {
+        width: min(100%, 430px);
+        min-height: 100dvh;
+        margin: 0 auto;
+        padding: max(20px, env(safe-area-inset-top)) 22px max(24px, env(safe-area-inset-bottom));
+        background: var(--surface);
+      }
+
+      .back-link {
+        display: inline-flex;
+        align-items: center;
+        min-height: 42px;
+        margin: 0 0 34px;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        color: var(--green-dark);
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .eyebrow {
+        margin: 0 0 7px;
+        color: var(--green);
+        font-size: .82rem;
+        font-weight: 750;
+        letter-spacing: .06em;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        margin: 0 0 14px;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: clamp(2rem, 8vw, 2.7rem);
+        font-weight: 600;
+        line-height: 1.08;
+      }
+
+      .intro {
+        margin: 0 0 28px;
+        color: var(--muted);
+        line-height: 1.55;
+      }
+
+      .placeholder {
+        padding: 18px;
+        border: 1px dashed #8aac95;
+        border-radius: 18px;
+        background: var(--green-soft);
+        color: var(--green-dark);
+        line-height: 1.5;
+      }
+
+      .placeholder strong {
+        display: block;
+        margin-bottom: 6px;
+      }
+
+      .library-list {
+        display: grid;
+        gap: 10px;
+        margin-top: 22px;
+      }
+
+      .library-card {
+        padding: 16px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: var(--surface-strong);
+      }
+
+      .library-card h2 {
+        margin: 0 0 7px;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 1.2rem;
+      }
+
+      .library-card p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.45;
+      }
+
+      @media (min-width: 600px) {
+        body { padding: 32px 0; }
+        .library-shell {
+          min-height: min(860px, calc(100dvh - 64px));
+          border-radius: 34px;
+          box-shadow: 0 24px 60px rgba(31, 43, 35, 0.16);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="library-shell">
+      <button id="back-to-checkin" class="back-link" type="button">← Back to check-in</button>
+      <p class="eyebrow">Habit library</p>
+      <h1 id="library-title">Habit library</h1>
+      <p id="library-intro" class="intro"></p>
+
+      <section class="placeholder" aria-label="Database placeholder">
+        <strong>Database placeholder</strong>
+        This page will eventually connect people with information about how different individuals experience, build, and adapt their habits.
+      </section>
+
+      <div class="library-list" aria-label="Future database sections">
+        <article class="library-card">
+          <h2>Different needs</h2>
+          <p>How routines can vary with health, energy, environment, culture, and personal preference.</p>
+        </article>
+        <article class="library-card">
+          <h2>Ideas to explore</h2>
+          <p>Examples people can consider without treating any single routine as universally correct.</p>
+        </article>
+        <article class="library-card">
+          <h2>Personal observations</h2>
+          <p>Ways to notice what seems supportive, neutral, or difficult in your own life.</p>
+        </article>
+      </div>
+    </main>
+
+    <script>
+      const categoryNames = {
+        sleep: "Sleep habits",
+        hygiene: "Hygiene habits",
+        nourishment: "Nourishment habits",
+        movement: "Movement habits",
+        breath: "Breath habits",
+        hobbies: "Hobby habits"
+      };
+
+      const category = new URLSearchParams(window.location.search).get("category");
+      const title = categoryNames[category] || "Habit library";
+      document.querySelector("#library-title").textContent = title;
+      document.querySelector("#library-intro").textContent =
+        `A future collection about how ${title.toLowerCase()} can look different for different individuals.`;
+      document.title = `${title} · Habit Library`;
+
+      document.querySelector("#back-to-checkin").addEventListener("click", () => {
+        if (window.history.length > 1) window.history.back();
+        else window.location.href = "index.html";
+      });
+    </script>
+  </body>
+</html>
