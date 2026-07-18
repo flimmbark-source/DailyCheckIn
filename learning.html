@@ -28,6 +28,8 @@
         color: var(--text);
       }
 
+      button { font: inherit; }
+
       .library-shell {
         width: min(100%, 430px);
         min-height: 100dvh;
@@ -40,10 +42,13 @@
         display: inline-flex;
         align-items: center;
         min-height: 42px;
-        margin-bottom: 34px;
+        margin: 0 0 34px;
+        padding: 0;
+        border: 0;
+        background: transparent;
         color: var(--green-dark);
         font-weight: 700;
-        text-decoration: none;
+        cursor: pointer;
       }
 
       .eyebrow {
@@ -120,7 +125,7 @@
   </head>
   <body>
     <main class="library-shell">
-      <a class="back-link" href="index.html">← Back to check-in</a>
+      <button id="back-to-checkin" class="back-link" type="button">← Back to check-in</button>
       <p class="eyebrow">Habit library</p>
       <h1 id="library-title">Habit library</h1>
       <p id="library-intro" class="intro"></p>
@@ -162,6 +167,11 @@
       document.querySelector("#library-intro").textContent =
         `A future collection about how ${title.toLowerCase()} can look different for different individuals.`;
       document.title = `${title} · Habit Library`;
+
+      document.querySelector("#back-to-checkin").addEventListener("click", () => {
+        if (window.history.length > 1) window.history.back();
+        else window.location.href = "index.html";
+      });
     </script>
   </body>
 </html>
