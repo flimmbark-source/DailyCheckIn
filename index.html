@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="slider.css" />
     <link rel="stylesheet" href="responsive.css" />
     <link rel="stylesheet" href="flow.css" />
+    <link rel="stylesheet" href="learning-links.css" />
   </head>
   <body>
     <main class="app-shell" aria-live="polite">
@@ -36,7 +37,11 @@
 
         <div class="stage-content">
           <div class="question-block">
-            <div id="category-icon" class="category-icon" aria-hidden="true"></div>
+            <div class="category-heading-row">
+              <span class="category-heading-spacer" aria-hidden="true"></span>
+              <div id="category-icon" class="category-icon" aria-hidden="true"></div>
+              <a id="learn-more" class="learn-more-link" href="learning.html" hidden>Learn more...</a>
+            </div>
             <h2 id="question-title"></h2>
           </div>
 
@@ -119,6 +124,7 @@
 
     <script src="app.js"></script>
     <script src="initial-run-order.js"></script>
+    <script src="learning-links.js"></script>
     <script src="slider.js"></script>
   </body>
 </html>
